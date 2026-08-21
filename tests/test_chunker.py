@@ -123,3 +123,48 @@ def test_empty_document():
     )
 
     assert fixed_size_chunks(document) == []
+
+def test_metadata_aware_chunks_preserve_metadata():
+    document = Document(
+        id="doc3",
+        text=(
+            "First sentence. "
+            "Second sentence. "
+            "Third sentence."
+        ),
+        metadata={
+            "source": "msmarco",
+            "query_id": 123,
+            "query_type": "DESCRIPTION",
+        },
+    )
+
+    chunks = sentence_based_chunks(
+        document,
+        max_chars=30,
+    )
+
+    assert len(chunks) == 3
+
+    for chunk in chunks:
+        assert chunk.metadata["source"] == "msmarco"
+        assert chunk.metadata["query_id"] == 123
+        assert chunk.metadata["query_type"] == "DESCRIPTION"
+        assert chunk.metadata["parent_id"] == "doc3"
+
+
+def test_metadata_aware_chunks_have_unique_ids():
+    document = Document(
+        id="doc4",
+        text="First sentence. Second sentence. Third sentence.",
+        metadata={"source": "test"},
+    )
+
+    chunks = sentence_based_chunks(
+        document,
+        max_chars=30,
+    )
+
+    ids = [chunk.id for chunk in chunks]
+
+    assert len(ids) == len(set(ids))
