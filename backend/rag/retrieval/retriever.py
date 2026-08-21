@@ -1,53 +1,37 @@
-import chromadb
+from __future__ import annotations
 
-from backend.rag.embeddings.embedder import Embedder
+from backend.rag.retrieval.vector_store import VectorStore
+from data.document import Document
 
 
 class Retriever:
-    """Store text embeddings and retrieve relevant documents."""
+    def __init__(self, vector_store: VectorStore):
+        self.vector_store = vector_store
 
-    def __init__(self):
-        self.client = chromadb.EphemeralClient()
-        self.collection = self.client.get_or_create_collection(
-            name="voice_rag"
-        )
-        self.embedder = Embedder()
+    def retrieve(
+        self,
+        query_vector: list[float],
+        top_k: int = 3,
+    ) -> list[dict]:
+        """
+        Returns ranked retrieval results with metadata.
+        """
 
-    def add_documents(self, documents: list[str]) -> None:
-        """Add documents to the vector store."""
-        if not documents:
-            return
+        scores, ids = self.vector_store.search(query_vector, top_k)
 
-        embeddings = [
-            self.embedder.embed(document)
-            for document in documents
-        ]
+        results = []
 
-        existing_count = self.collection.count()
-        ids = [
-            f"doc_{existing_count + i}"
-            for i in range(len(documents))
-        ]
+        for doc_id, distance in zip(ids, scores):
+            doc = self.vector_store.documents[doc_id]
 
-        self.collection.add(
-            ids=ids,
-            documents=documents,
-            embeddings=embeddings,
-        )
+            similarity = 1 / (1 + float(distance))
 
-    def retrieve(self, query: str, top_k: int = 3) -> list[str]:
-        """Retrieve the most relevant documents for a query."""
-        if not query.strip():
-            raise ValueError("query must not be empty")
+            results.append(
+                {
+                    "document": doc,
+                    "score": similarity,
+                    "distance": float(distance),
+                }
+            )
 
-        if top_k <= 0:
-            raise ValueError("top_k must be greater than 0")
-
-        query_embedding = self.embedder.embed(query)
-
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-        )
-
-        return results["documents"][0]
+        return results

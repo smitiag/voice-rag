@@ -1,32 +1,29 @@
-from backend.rag.chunking.chunker import sentence_chunks
+from __future__ import annotations
+
+from backend.rag.embeddings.embedder import BaseEmbedder
 from backend.rag.retrieval.retriever import Retriever
+from backend.rag.retrieval.vector_store import VectorStore
+from data.document import Document
 
 
-class RAGPipeline:
-    """Coordinate chunking and retrieval for RAG."""
+def build_retrieval_pipeline(
+    documents: list[Document],
+    embedder: BaseEmbedder,
+) -> Retriever:
+    """
+    Build complete retrieval pipeline.
+    """
 
-    def __init__(
-        self,
-        chunk_size: int = 3,
-        sentences_per_chunk: int = 2,
-    ):
-        self.chunk_size = chunk_size
-        self.sentences_per_chunk = sentences_per_chunk
-        self.retriever = Retriever()
+    if not documents:
+        store = VectorStore(dimension=384)
+        return Retriever(store)
 
-    def add_text(self, text: str) -> None:
-        """Chunk text and add the chunks to the retriever."""
-        if not text.strip():
-            raise ValueError("text must not be empty")
+    texts = [doc.text for doc in documents]
+    vectors = embedder.embed_batch(texts)
 
-        chunks = sentence_chunks(
-            text,
-            sentences_per_chunk=self.sentences_per_chunk,
-        )
+    dimension = len(vectors[0])
 
-        if chunks:
-            self.retriever.add_documents(chunks)
+    store = VectorStore(dimension=dimension)
+    store.add(documents, vectors)
 
-    def retrieve(self, query: str, top_k: int = 3) -> list[str]:
-        """Retrieve relevant chunks for a query."""
-        return self.retriever.retrieve(query, top_k=top_k)
+    return Retriever(store)

@@ -1,57 +1,37 @@
-import pytest
-
-from backend.rag.pipeline import RAGPipeline
-
-
-def test_pipeline_adds_and_retrieves_text():
-    pipeline = RAGPipeline()
-
-    pipeline.add_text(
-        "Python is a programming language. "
-        "RAG retrieves relevant information from documents. "
-        "Embeddings represent text as vectors."
-    )
-
-    results = pipeline.retrieve(
-        "What does RAG retrieve?",
-        top_k=2,
-    )
-
-    assert len(results) == 2
-    assert any("RAG" in result for result in results)
+from backend.rag.pipeline import build_retrieval_pipeline
+from backend.rag.embeddings.embedder import BaseEmbedder
+from data.document import Document
 
 
-def test_pipeline_rejects_empty_text():
-    pipeline = RAGPipeline()
+class DummyEmbedder(BaseEmbedder):
+    def embed_text(self, text: str) -> list[float]:
+        if text == "Apple":
+            return [1.0, 0.0, 0.0]
+        if text == "Banana":
+            return [0.0, 1.0, 0.0]
+        return [0.0, 0.0, 1.0]
 
-    with pytest.raises(ValueError):
-        pipeline.add_text("")
-
-
-def test_pipeline_rejects_empty_query():
-    pipeline = RAGPipeline()
-
-    with pytest.raises(ValueError):
-        pipeline.retrieve("")
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed_text(t) for t in texts]
 
 
-def test_pipeline_handles_multiple_documents():
-    pipeline = RAGPipeline()
+def test_build_pipeline():
+    docs = [
+        Document(id="1", text="Apple", metadata={"source": "A"}),
+        Document(id="2", text="Banana", metadata={"source": "B"}),
+    ]
 
-    pipeline.add_text(
-        "Python is used for software development. "
-        "FastAPI is a Python web framework."
-    )
+    retriever = build_retrieval_pipeline(docs, DummyEmbedder())
 
-    pipeline.add_text(
-        "The solar system contains planets. "
-        "Earth is the third planet from the Sun."
-    )
+    results = retriever.retrieve([1.0, 0.0, 0.0], top_k=1)
 
-    results = pipeline.retrieve(
-        "Which planet is Earth?",
-        top_k=2,
-    )
+    assert results[0]["document"].id == "1"
+    assert results[0]["document"].metadata["source"] == "A"
 
-    assert len(results) == 2
-    assert any("Earth" in result for result in results)
+
+def test_empty_pipeline():
+    retriever = build_retrieval_pipeline([], DummyEmbedder())
+
+    results = retriever.retrieve([1.0, 0.0, 0.0])
+
+    assert results == []
