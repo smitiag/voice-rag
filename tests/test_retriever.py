@@ -1,34 +1,57 @@
-import pytest
-
 from backend.rag.retrieval.retriever import Retriever
+from backend.rag.retrieval.vector_store import VectorStore
+from data.document import Document
 
 
-def test_retriever_returns_relevant_documents():
-    retriever = Retriever()
+def build_store():
+    store = VectorStore(dimension=3)
 
-    retriever.add_documents(
-        [
-            "Python is a programming language.",
-            "The sun is a star.",
-            "RAG retrieves relevant information.",
-        ]
-    )
+    docs = [
+        Document(id="doc1", text="Apple", metadata={"source": "A"}),
+        Document(id="doc2", text="Banana", metadata={"source": "B"}),
+        Document(id="doc3", text="Cherry", metadata={"source": "C"}),
+    ]
 
-    results = retriever.retrieve("What is RAG?", top_k=1)
+    vectors = [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
 
-    assert len(results) == 1
-    assert "RAG" in results[0]
-
-
-def test_retriever_rejects_empty_query():
-    retriever = Retriever()
-
-    with pytest.raises(ValueError):
-        retriever.retrieve("")
+    store.add(docs, vectors)
+    return store
 
 
-def test_retriever_rejects_invalid_top_k():
-    retriever = Retriever()
+def test_top_k_retrieval():
+    retriever = Retriever(build_store())
 
-    with pytest.raises(ValueError):
-        retriever.retrieve("What is RAG?", top_k=0)
+    results = retriever.retrieve([1.0, 0.0, 0.0], top_k=2)
+
+    assert len(results) == 2
+    assert results[0]["document"].id == "doc1"
+    assert results[0]["document"].text == "Apple"
+
+
+def test_empty_retrieval():
+    retriever = Retriever(VectorStore(dimension=3))
+
+    results = retriever.retrieve([1.0, 0.0, 0.0])
+
+    assert results == []
+
+
+def test_metadata_preserved():
+    retriever = Retriever(build_store())
+
+    result = retriever.retrieve([0.0, 1.0, 0.0], top_k=1)[0]
+
+    assert result["document"].metadata["source"] == "B"
+
+
+def test_similarity_score_range():
+    retriever = Retriever(build_store())
+
+    result = retriever.retrieve([1.0, 0.0, 0.0], top_k=1)[0]
+
+    assert 0.0 <= result["score"] <= 1.0
+    assert isinstance(result["distance"], float)

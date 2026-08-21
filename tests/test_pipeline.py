@@ -1,41 +1,37 @@
-from backend.rag.pipeline import build_embedding_pipeline
+from backend.rag.pipeline import build_retrieval_pipeline
 from backend.rag.embeddings.embedder import BaseEmbedder
 from data.document import Document
 
 
 class DummyEmbedder(BaseEmbedder):
     def embed_text(self, text: str) -> list[float]:
-        return [1.0, 2.0, 3.0]
+        if text == "Apple":
+            return [1.0, 0.0, 0.0]
+        if text == "Banana":
+            return [0.0, 1.0, 0.0]
+        return [0.0, 0.0, 1.0]
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        return [[1.0, 2.0, 3.0] for _ in texts]
+        return [self.embed_text(t) for t in texts]
 
 
-def test_embedding_pipeline():
+def test_build_pipeline():
     docs = [
-        Document(
-            id="1",
-            text="Hello",
-            metadata={"source": "test"},
-        )
+        Document(id="1", text="Apple", metadata={"source": "A"}),
+        Document(id="2", text="Banana", metadata={"source": "B"}),
     ]
 
-    result = build_embedding_pipeline(
-        docs,
-        DummyEmbedder(),
-    )
+    retriever = build_retrieval_pipeline(docs, DummyEmbedder())
 
-    assert len(result) == 1
-    assert result[0]["id"] == "1"
-    assert result[0]["text"] == "Hello"
-    assert result[0]["embedding"] == [1.0, 2.0, 3.0]
-    assert result[0]["metadata"]["source"] == "test"
+    results = retriever.retrieve([1.0, 0.0, 0.0], top_k=1)
+
+    assert results[0]["document"].id == "1"
+    assert results[0]["document"].metadata["source"] == "A"
 
 
-def test_pipeline_empty_input():
-    result = build_embedding_pipeline(
-        [],
-        DummyEmbedder(),
-    )
+def test_empty_pipeline():
+    retriever = build_retrieval_pipeline([], DummyEmbedder())
 
-    assert result == []
+    results = retriever.retrieve([1.0, 0.0, 0.0])
+
+    assert results == []
