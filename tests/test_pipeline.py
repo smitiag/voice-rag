@@ -1,57 +1,41 @@
-import pytest
+from backend.rag.pipeline import build_embedding_pipeline
+from backend.rag.embeddings.embedder import BaseEmbedder
+from data.document import Document
 
-from backend.rag.pipeline import RAGPipeline
+
+class DummyEmbedder(BaseEmbedder):
+    def embed_text(self, text: str) -> list[float]:
+        return [1.0, 2.0, 3.0]
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [[1.0, 2.0, 3.0] for _ in texts]
 
 
-def test_pipeline_adds_and_retrieves_text():
-    pipeline = RAGPipeline()
+def test_embedding_pipeline():
+    docs = [
+        Document(
+            id="1",
+            text="Hello",
+            metadata={"source": "test"},
+        )
+    ]
 
-    pipeline.add_text(
-        "Python is a programming language. "
-        "RAG retrieves relevant information from documents. "
-        "Embeddings represent text as vectors."
+    result = build_embedding_pipeline(
+        docs,
+        DummyEmbedder(),
     )
 
-    results = pipeline.retrieve(
-        "What does RAG retrieve?",
-        top_k=2,
+    assert len(result) == 1
+    assert result[0]["id"] == "1"
+    assert result[0]["text"] == "Hello"
+    assert result[0]["embedding"] == [1.0, 2.0, 3.0]
+    assert result[0]["metadata"]["source"] == "test"
+
+
+def test_pipeline_empty_input():
+    result = build_embedding_pipeline(
+        [],
+        DummyEmbedder(),
     )
 
-    assert len(results) == 2
-    assert any("RAG" in result for result in results)
-
-
-def test_pipeline_rejects_empty_text():
-    pipeline = RAGPipeline()
-
-    with pytest.raises(ValueError):
-        pipeline.add_text("")
-
-
-def test_pipeline_rejects_empty_query():
-    pipeline = RAGPipeline()
-
-    with pytest.raises(ValueError):
-        pipeline.retrieve("")
-
-
-def test_pipeline_handles_multiple_documents():
-    pipeline = RAGPipeline()
-
-    pipeline.add_text(
-        "Python is used for software development. "
-        "FastAPI is a Python web framework."
-    )
-
-    pipeline.add_text(
-        "The solar system contains planets. "
-        "Earth is the third planet from the Sun."
-    )
-
-    results = pipeline.retrieve(
-        "Which planet is Earth?",
-        top_k=2,
-    )
-
-    assert len(results) == 2
-    assert any("Earth" in result for result in results)
+    assert result == []
