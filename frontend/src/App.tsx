@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { askQuestion } from "./api";
 import { 
   MessageSquare, 
   FileText, 
@@ -81,12 +82,57 @@ function Sidebar({ activeTab, setActiveTab }: SidebarProps){
 
 function ChatView() {
   const [inputText, setInputText] = useState('');
+  const [answer, setAnswer] = useState("");
+  const [sources, setSources] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const suggestions = [
     "Summarize the latest Q3 report",
     "What is the remote work policy?",
     "Find guidelines for expense reporting"
   ];
+
+
+  const sendMessage = async () => {
+    {answer && (
+  <div className="flex flex-col items-start w-full">
+    <div className="bg-white border border-slate-200 px-6 py-5 rounded-2xl rounded-tl-sm max-w-[85%] shadow-sm">
+      <p className="text-slate-700 leading-relaxed">{answer}</p>
+
+      <div className="mt-4">
+        <p className="text-xs font-medium text-slate-500 mb-2">Sources</p>
+
+        <div className="flex flex-wrap gap-2">
+          {sources.map((_, i) => (
+            <div
+              key={i}
+              className="bg-slate-100 px-3 py-1 rounded-lg text-sm"
+            >
+              Source {i + 1}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+  if (!inputText.trim()) return;
+
+  setLoading(true);
+
+  try {
+    const data = await askQuestion(inputText);
+
+    setAnswer(data.answer);
+    setSources(data.retrieved_chunks);
+    setInputText("");
+  } catch (err) {
+    setAnswer("Backend connection failed");
+    setSources([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white max-w-5xl mx-auto w-full border-x border-slate-100 shadow-sm">
@@ -110,7 +156,7 @@ function ChatView() {
         <div className="flex flex-col items-start w-full">
           <div className="bg-white border border-slate-200 px-6 py-5 rounded-2xl rounded-tl-sm max-w-[85%] shadow-sm">
             <p className="text-slate-700 leading-relaxed">
-              According to the employee handbook, extended leave (defined as any time off exceeding 14 consecutive days) requires approval from both your direct manager and the HR department. You must submit your request at least 30 days in advance using the standardized Leave of Absence form.
+               {loading ? "Generating answer..." : answer}
             </p>
             
             {/* Sources Section */}
@@ -120,17 +166,18 @@ function ChatView() {
                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Sources Retrieved</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-sm cursor-pointer hover:bg-slate-100 transition-colors">
-                  <File size={14} className="text-violet-500" />
-                  <span className="text-slate-700 font-medium">Employee_Handbook_2024.pdf</span>
-                  <span className="text-xs text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-100">98% match</span>
-                </div>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-sm cursor-pointer hover:bg-slate-100 transition-colors">
-                  <File size={14} className="text-violet-500" />
-                  <span className="text-slate-700 font-medium">HR_Policies_V2.docx</span>
-                  <span className="text-xs text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-100">85% match</span>
-                </div>
-              </div>
+               {sources.map((_, index) => (
+             <div
+               key={index}
+               className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-sm"
+               >
+      <File size={14} className="text-violet-500" />
+      <span className="text-slate-700 font-medium">
+        Source {index + 1}
+      </span>
+    </div>
+  ))}
+</div>
             </div>
           </div>
         </div>
@@ -165,13 +212,15 @@ function ChatView() {
             <button className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-colors">
               <Mic size={20} />
             </button>
-            <button 
-              className={`p-2 rounded-xl transition-colors ${
-                inputText.trim() 
-                  ? 'bg-violet-600 text-white shadow-sm hover:bg-violet-700' 
-                  : 'bg-slate-100 text-slate-400'
-              }`}
-            >
+            <button
+  onClick={sendMessage}
+  disabled={loading}
+  className={`p-2 rounded-xl transition-colors ${
+    inputText.trim()
+      ? "bg-violet-600 text-white shadow-sm hover:bg-violet-700"
+      : "bg-slate-100 text-slate-400"
+  }`}
+>
               <Send size={18} />
             </button>
           </div>
