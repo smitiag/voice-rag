@@ -10,20 +10,19 @@ client = ElevenLabs(
 )
 
 
-def text_to_speech(
-    text: str,
-    output_file: str = "response.mp3"
-) -> str:
-    """
-    Convert text into speech using ElevenLabs.
-    """
+def text_to_speech(text: str, output_file: str = "response.mp3") -> str:
+    try:
+        audio = client.text_to_speech.convert(
+            voice_id="YOUR_VOICE_ID",
+            model_id="eleven_multilingual_v2",
+            text=text,
+        )
 
-    audio = client.text_to_speech.convert(
-        voice_id="JBFqnCBsd6RMkjVDRZzb",
-        model_id="eleven_multilingual_v2",
-        text=text,
-    )
+        with open(output_file, "wb") as f:
+            for chunk in audio:
+                f.write(chunk)
 
-    save(audio, output_file)
+        return output_file
 
-    return output_file
+    except Exception:
+        return None
