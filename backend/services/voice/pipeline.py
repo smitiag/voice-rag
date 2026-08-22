@@ -1,14 +1,16 @@
-from recorder import record_audio
-from stt import speech_to_text
-from pathlib import Path
+from backend.services.voice.api_client import ask_rag
 
-ROOT = Path(__file__).resolve().parents[3]
 
-def capture_transcript(duration=5):
-    record_audio(duration=duration)
+def process_voice_query(transcript: str) -> dict:
+    """
+    Takes speech transcript, sends it to the RAG API,
+    and returns the grounded response.
+    """
 
-    audio_path = ROOT / "data" / "sample.wav"
+    result = ask_rag(transcript)
 
-    transcript = speech_to_text(str(audio_path))
-
-    return transcript
+    return {
+        "transcript": transcript,
+        "answer": result["answer"],
+        "citations": result["citations"],
+    }

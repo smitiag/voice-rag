@@ -1,21 +1,28 @@
 import sounddevice as sd
 import soundfile as sf
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-OUTPUT = ROOT / "data" / "sample.wav"
+SAMPLE_RATE = 16000
+DURATION = 5
 
 
-def record_audio(duration=5, samplerate=16000):
-    print("🎙️ Recording started... Speak now!")
+def record_audio(output_file: str = "recording.wav") -> str:
+    """
+    Records audio from microphone for 5 seconds.
+    """
+
+    print("🎙 Recording... Speak now!")
 
     audio = sd.rec(
-        int(duration * samplerate),
-        samplerate=samplerate,
+        int(DURATION * SAMPLE_RATE),
+        samplerate=SAMPLE_RATE,
         channels=1,
-        dtype="int16"
+        dtype="float32",
     )
+
     sd.wait()
 
-    sf.write(str(OUTPUT), audio, samplerate)
-    print(f"✅ Audio saved at: {OUTPUT}")
+    sf.write(output_file, audio, SAMPLE_RATE)
+
+    print(f"Saved: {output_file}")
+
+    return output_file

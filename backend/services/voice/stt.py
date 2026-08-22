@@ -1,23 +1,13 @@
-import os
-from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
+import whisper
 
-load_dotenv()
-
-client = ElevenLabs(
-    api_key=os.getenv("ELEVENLABS_API_KEY")
-)
+model = whisper.load_model("base")
 
 
-def speech_to_text(audio_path: str):
+def transcribe(audio_path: str) -> str:
     """
-    Convert audio file to text using ElevenLabs STT.
-    Returns transcript string.
+    Convert speech audio into text.
     """
-    with open(audio_path, "rb") as audio:
-        result = client.speech_to_text.convert(
-            file=audio,
-            model_id="scribe_v1"
-        )
 
-    return result.text
+    result = model.transcribe(audio_path)
+
+    return result["text"].strip()
